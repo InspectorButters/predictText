@@ -1,0 +1,185 @@
+---
+title: "Capstone - Word Prediction Milestone Report"
+author: "Robert B. Herget"
+date: "May 9, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, cache = TRUE)
+```
+
+This report summarizes progress of the text/word prediction application.
+
+## Getting the Data
+
+Data are provided by SwiftKey in the form of 12 txt files: Three distinct source types (news, blogs and twitter) in four distinct languages (German, English, Finnish and Russian). We begin by setting the working directory, downloading the data via Coursera, and unzipping the file.
+
+```{r, eval = FALSE}
+#Set working directory
+setwd("C:/Users/Bob/Desktop/R & Git/Projects/textPrediction")
+
+#Download and unzip file; files are large and this step may take several minutes
+dataURL <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+download.file(dataURL, destfile = "./Swiftkey.zip")
+unzip("./Swiftkey.zip")
+```
+
+## File Cleanup
+
+The following steps, while not absolutely necessary, remove unused files and directories, making for a tidier work environment. Specifically, we delete any file in German, Finnish or Russian, as we use only English versions for this project.
+
+```{r, eval = FALSE}
+unlink("./final/de_DE", recursive = TRUE)     #delete German files
+unlink("./final/fi_FI", recursive = TRUE)     #delete Finnish files
+unlink("./final/ru_RU", recursive = TRUE)     #delete Russian files
+```
+
+We then move the three English (blogs, news and twitter) up to the "final" directory, and then delete the now-empty "en_US" directory. Additionally, we delete the original zip file.
+
+```{r, eval = FALSE}
+#Move all 3 english files up to the "final" folder
+file.rename(from = "./final/en_US/en_US.blogs.txt",
+            to = "./final/en_US.blogs.txt")
+file.rename(from = "./final/en_US/en_US.news.txt",
+            to = "./final/en_US.news.txt")
+file.rename(from = "./final/en_US/en_US.twitter.txt",
+            to = "./final/en_US.twitter.txt")
+
+#Furthur housekeeping: delete the now-empty en_US directory and the unzipped file
+unlink("./final/en_US", recursive = TRUE)
+unlink("./Swiftkey.zip", recursive = TRUE)
+```
+
+## Reading the Files into R
+
+The large size and nature of these files created challenges when reading into R. Noteable diffuclty was encountered when reading the "news" file into R. Using the readLines function alone was unable to overcome missing end-of-line (EOL) markers that plagued that document. To handle this missing EOL problem, we read the document through opening a connection (con). Though not necessary, this technique is applied to the other two documents (blogs and twitter) for consistency.
+
+```{r, eval = FALSE}
+con <- file("./final/en_US.blogs.txt", open = 'rb')
+blogs <- readLines(con, skipNul = TRUE)
+close(con)
+
+con <- file("./final/en_US.news.txt", open = 'rb')
+news <- readLines(con, skipNul = TRUE)
+close(con)
+
+con <- file("./final/en_US.twitter.txt", open = 'rb')
+twitter <- readLines(con, skipNul = TRUE)
+close(con)
+```
+
+## Data Summary
+
+The Character String Processing Facilities (stringi) packages is loaded to assist with data summarization.
+
+```{r, eval = FALSE}
+library(stringi)
+
+blogs.size <- file.info("./final/en_US.blogs.txt")$size / 1000000       #size in MBs
+news.size <- file.info("./final/en_US.news.txt")$size / 1000000         #size in MBs
+twitter.size <- file.info("./final/en_US.twitter.txt")$size / 1000000   #size in MBs
+
+blogs.words <- stri_count_words(blogs)
+news.words <- stri_count_words(news)
+twitter.words <- stri_count_words(twitter)
+
+data.frame(source = c("blogs", "news", "twitter"),
+           file.size.MB = c(blogs.size, news.size, twitter.size),
+           num.lines = c(length(blogs), length(news), length(twitter)),
+           num.words = c(sum(blogs.words), sum(news.words), sum(twitter.words)),
+           mean.num.words = c(mean(blogs.words), mean(news.words), mean(twitter.words)))
+
+#source file.size.MB num.lines num.words mean.num.words
+#1   blogs     210.1600    899288  37546246       41.75108
+#2    news     204.8015   1010241  34762373       34.40998
+#3 twitter     167.1053   2360148  30093410       12.75065
+```
+
+
+## Corpus Creation and Cleaning
+
+To create the corpus we leverage the text mining (tm) package. A master corpus will be created by combining a samples from the blogs, news and twitter files.
+
+```{r, eval = FALSE}
+library(tm)             #load text mining (tm) package
+```
+
+A note on sample size: memory and processing considerations are important at this step. Iteratively had to test sample sizes until a "cannot allocate size of ..." error. A 3% sample --> 11.5GB; 0.75% sample --> 2.8GB; 0.25% --> success.
+
+```{r, eval = FALSE}
+sampSize <- 0.0025        #set % sample size
+
+data.sample <- c(sample(blogs, length(blogs) * sampSize),
+                 sample(news, length(news) * sampSize),
+                 sample(twitter, length(twitter) * sampSize))
+
+corpus <- VCorpus(VectorSource(data.sample))
+
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+corpus <- tm_map(corpus, toSpace, "(f|ht)tp(s?)://(.*)[.][a-z]+")   #remove URLs
+corpus <- tm_map(corpus, toSpace, "@[^\\s]+")                       #remove special chars
+
+corpus <- tm_map(corpus, content_transformer(tolower))              #all lowercase
+corpus <- tm_map(corpus, removeWords, stopwords("en"))              #e.g., "a", "the", etc.
+corpus <- tm_map(corpus, removePunctuation)                         #remove punctuation
+corpus <- tm_map(corpus, removeNumbers)                             #remove numbers
+corpus <- tm_map(corpus, stripWhitespace)                           #no excess white space
+corpus <- tm_map(corpus, PlainTextDocument)                         #create plain text doc
+```
+
+## Exploratory Analysis
+
+The RWeka library assists in generating the unigram, bigram and trigram. Note that it is necessary to have the architecture of Java match that of your OS (e.g., install a 64bit Windows Java version if you have a 64 bit version of Windows).
+
+```{r, eval = FALSE}
+library(RWeka)
+library(ggplot2)
+
+options(mc.cores=1)
+
+getFreq <- function(tdm) {
+  freq <- sort(rowSums(as.matrix(tdm)), decreasing = TRUE)
+  return(data.frame(word = names(freq), freq = freq))
+}
+
+bigram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+trigram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+
+makePlot <- function(data, label) {
+  ggplot(data[1:30,], aes(reorder(word, -freq), freq)) +
+    labs(x = label, y = "Frequency") +
+    theme(axis.text.x = element_text(angle = 60, size = 12, hjust = 1)) +
+    geom_bar(stat = "identity", fill = I("grey50"))
+}
+```
+
+Unigram:
+```{r, eval = FALSE}
+freq1 <- getFreq(removeSparseTerms(TermDocumentMatrix(corpus), 0.9999))
+makePlot(freq1, "30 Most Common Unigrams")
+```
+
+```{r echo=FALSE, out.width='70%'}
+knitr::include_graphics('./freq1.png')
+```
+
+Bigram:
+```{r, eval = FALSE}
+freq2 <- getFreq(removeSparseTerms(TermDocumentMatrix(corpus, control = list(tokenize = bigram)), 0.9999))
+makePlot(freq2, "30 Most Common Bigrams")
+```
+
+```{r echo=FALSE, out.width='70%'}
+knitr::include_graphics('./freq2.png')
+```
+
+Trigram:
+```{r, eval = FALSE}
+freq3 <- getFreq(removeSparseTerms(TermDocumentMatrix(corpus, control = list(tokenize = trigram)), 0.9999))
+makePlot(freq3, "30 Most Common Trigrams")
+```
+
+```{r echo=FALSE, out.width='70%'}
+knitr::include_graphics('./freq3.png')
+```

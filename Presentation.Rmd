@@ -1,0 +1,46 @@
+---
+title: "predictText Application"
+author: "Robert B. Herget"
+date: "May 20, 2017"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Application Overview & Usage
+
+The predictText app allows the user to type words/phrases, then seeks to (1) predict the next word and (2) if applicable, autocomplete an unfinished word. The app is available [here](https://herget.shinyapps.io/textprediction/).
+
+Simplicity drives the user interface design. When a user is in the midst of typing a word, a list of *autocomplete* suggestions are generated:
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics('./sShot1.JPG')
+```
+
+
+## Application Overview & Usage, Continued
+
+When a user completes typing a word, a list of *next word* suggestions are generated. The program is alerted to the completion of a word when a space is placed after the word.
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics('./sShot2.JPG')
+```
+
+## Model Design
+
+- Model based upon N-gram-Katz Backoff Model concepts
+- Corpus from which model is derived converted to lower-case, removed of URLs and special characters, stripped of excess white space and cleaned of numbers and punctuation 
+- Matrices excluded from 5-grams to unigrams 
+- Improved speed by excluding least-frequent occurences of all n-gram orders
+- Exclude least frequent unigram and bigram to improve speed with little sacrifice to accuracy
+
+
+## Predictive Algorithm Overview
+
+- Reactively, the algorithm reads the text input and predicts the next word
+- Iteratively reads from longest 5-gram to shortest 2-gram
+- Predicts the longest, most frequent, n-gram
+- In cases where no match is found, the algorithm selects the most-frequent single word
+- For source code and technical notes, visit [predictText Github Repository](https://github.com/InspectorButters/predictText)
