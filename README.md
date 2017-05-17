@@ -22,9 +22,12 @@ A note on sample size: memory and processing considerations are important at thi
 This sample corpus is further polished with the following edits:
 - removal of URLs
 - removal of special characters (e.g.,@,[,^,\s]+)
+- conversion to all lowercase
+- removal of punctuation
+- removal of numbers
+- stripping of excess white space
+- formatting to plain text document
 
 # Modeling 
-
-
 This application uses an n-gram, which offers benefits of simplicity and scalability.  Specifically, the Katz backoff model variant, which estimates conditional probability of a word given its history in the n-gram, is the basis of the selection algorithm. With user experience in mind, this method allows for reduced app size resulting in a fairly fast runtime.
 
