@@ -28,6 +28,7 @@ This sample corpus is further polished with the following edits:
 - stripping of excess white space
 - formatting to plain text document
 
-# Modeling 
+# Modeling & Algorithm Overview
 This application uses an n-gram, which offers benefits of simplicity and scalability.  Specifically, the Katz backoff model variant, which estimates conditional probability of a word given its history in the n-gram, is the basis of the selection algorithm. With user experience in mind, this method allows for reduced app size resulting in a fairly fast runtime.
 
+The algorithm in the app reads the text input and predicts the next word. Iteratively reading from the longest 5-gram to the shortest 2-gram, predicts the longest, most frequent, n-gram. In cases where no match is found, the algorithm randomly selects the "most-likely" word.
