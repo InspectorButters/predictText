@@ -1,5 +1,7 @@
 # predictText Application
-This app prompts a user to type a word or phrase and then predicts (1) the next word and (if necessary, 2) autocompletion of incomplete words
+This app prompts a user to type a word or phrase and then predicts (1) the next word and (if necessary, 2) autocompletion of incomplete words https://herget.shinyapps.io/textprediction/ ; a brief presentation of the application is available at http://rpubs.com/rbherget/277680 . 
+
+The predictText app...
 
 # Data Overview 
 tba
