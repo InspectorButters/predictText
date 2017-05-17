@@ -15,7 +15,13 @@ The large size and nature of these files created challenges when reading into R.
 technique is applied to the other two documents (blogs and twitter) for consistency.
  
 # Corpus Creation & Tokenization 
-tba
+To create the corpus we leverage the text mining (tm) package. A master corpus will be created by combining samples from the blogs, news and twitter files.
+
+A note on sample size: memory and processing considerations are important at this step. Depending on your system and processing capabilities, you may have to iteratively test sample sizes until a “cannot allocate size of (certain amount)” error messages are overcome. Once a proper sample size is reached, samples are collected from each of the blogs, news and Twitter files and combined into a single sample corpus.
+
+This sample corpus is further polished with the following edits:
+- removal of URLs
+- removal of special characters (e.g.,@,[,^,\s]+)
 
 # Modeling 
 
